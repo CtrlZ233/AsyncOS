@@ -1,15 +1,17 @@
-# run 
+# run
+
 python ./lkm.py
 
 # doc
-[scheduler_doc.md](./scheduler_doc.md)
 
-[kernel_module_doc.md](./kernel_module_doc.md)
+[scheduler_doc.md](./doc/scheduler_doc.md)
 
+[kernel_module_doc.md](./doc/kernel_module_doc.md)
 
 # requirements
 
-qemu 5.2 
+qemu 5.2
+
 ```shell
 # 安装编译所需的依赖包
 sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
@@ -32,13 +34,11 @@ export PATH=$PATH:$HOME/qemu-5.2.0/build/riscv64-softmmu
 export PATH=$PATH:$HOME/qemu-5.2.0/build/riscv64-linux-user
 ```
 
-
-
 # 运行演示
+
 在4核cpu上 .8个用户进程, 每个用户进程下有多个协程运行演示,每个协程输出自身编号
 
 因为时钟中断的原因,中间输出的信息有点乱.
-
 
 ```c
 [rustsbi] RustSBI version 0.2.0-alpha.9
@@ -117,31 +117,31 @@ thread_main-------------
 thread_main running, no task: 
 >>>> will switch_to thread 0 in idle_main!
 thread_main-------------
-thread_main running, no task: false       
+thread_main running, no task: false     
 [hart 
 >>>> will switch_to thread 0 in idle_main!
 thread_main-------------
-thread_main running, no task: false       
+thread_main running, no task: false     
 
 >>>> will switch_to thread 0 in idle_main!
 thread_main-------------
-thread_main running, no task: false       
+thread_main running, no task: false     
 false
 [hart 3] [user7] 666
-thread_main running, no task: false       
+thread_main running, no task: false     
 [hart 3] [user7] 9
-thread_main running, no task: false       
+thread_main running, no task: false     
 [hart 3] [user7] 8
-thread_main running, no task: false       
+thread_main running, no task: false     
 >>>> will switch_to thread 0 in idle_main!
 thread_main-------------
-thread_main running, no task: false        
+thread_main running, no task: false      
 3] [user5] 666
-thread_main running, no task: false        
+thread_main running, no task: false      
 [hart 3] [user5] 9
-thread_main running, no task: false        
+thread_main running, no task: false      
 [hart 3] [user5] 8
-thread_main running, no task: false        
+thread_main running, no task: false      
 [hart 3] [user5] 7
 thread_main running, no task: false[hart 3] [user6] 666
 thread_main running, no task: false

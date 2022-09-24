@@ -6,11 +6,6 @@ rustflags = [
     "-Clink-arg=-Tsrc/linker.ld", "-Cforce-frame-pointers=yes"
 ]
 
-[http]
-proxy = "127.0.0.1:7890"
-
-[https]
-proxy = "127.0.0.1:7890"
 
 [source.crates-io]
 registry = "https://github.com/rust-lang/crates.io-index"
