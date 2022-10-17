@@ -7,6 +7,7 @@
 #![feature(naked_functions)]
 // #![feature(const_in_array_repeat_expressions)]
 #![feature(alloc_error_handler)]
+#![feature(map_try_insert)]
 #![allow(unused)]
 
 use alloc::alloc::dealloc;
@@ -18,6 +19,9 @@ extern crate alloc;
 extern crate bitflags;
 
 #[macro_use]
+extern crate log;
+
+#[macro_use]
 mod console;
 mod lang_items;
 mod sbi;
@@ -27,11 +31,17 @@ mod config;
 mod task;
 mod timer;
 mod mm;
+#[macro_use]
 mod fs;
 mod drivers;
 mod loader;
 mod lkm;
 mod basic_rt;
+mod plic;
+#[macro_use]
+mod uart;
+mod trace;
+mod logger;
 
 
 global_asm!(include_str!("entry.asm"));
@@ -64,9 +74,21 @@ pub fn rust_main(hart_id: usize) -> ! {
         mm::init();
         println!("[kernel] Hello, world!");
         mm::remap_test();
+        // trace::init();
+        // println!("trace init succ!");
+        // trace::trace_test();
+        // println!("trace test pass~");
         trap::init();
-        trap::enable_timer_interrupt();
+        // trap::enable_timer_interrupt();
         timer::set_next_trigger();
+
+        // 初始化外部中断控制器的中断优先级
+        plic::init();
+        // 使能S态下的4种外部中断
+        plic::init_hart(hart_id);
+        // 初始化串口设备
+        uart::init();
+
         info!("loader list app");
         fs::list_apps();
         
@@ -82,6 +104,7 @@ pub fn rust_main(hart_id: usize) -> ! {
     }else{
         init_other_cpu();
     }
+    timer::set_next_trigger();
 
     println_hart!("Hello", hart_id);
     
@@ -106,7 +129,7 @@ pub fn init_other_cpu(){
             hint::spin_loop();
         }
 
-        others_main();
+        others_main(hart_id);
         
         unsafe {
             let satp: usize;
@@ -117,11 +140,10 @@ pub fn init_other_cpu(){
     }
 }
 
-pub fn others_main(){
+pub fn others_main(hart_id: usize){
     mm::init_kernel_space();
     trap::init();
-    trap::enable_timer_interrupt();
-    timer::set_next_trigger();
+    plic::init_hart(hart_id);
 }
 
 

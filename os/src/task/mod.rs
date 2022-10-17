@@ -28,7 +28,7 @@ pub use processor::{
     schedule,
     hart_id,
 };
-pub use pid::{PidHandle, pid_alloc, KernelStack};
+pub use pid::{PidHandle, pid_alloc, KernelStack, find_task};
 
 use spin::Mutex;
 
@@ -93,11 +93,11 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 }
 
 lazy_static! {
-    pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new({
+    pub static ref INITPROC: Arc<TaskControlBlock> = {
         let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
         let v = inode.read_all();
         TaskControlBlock::new(v.as_slice(), 7 as usize)
-    });
+    };
 }
 
 pub fn add_initproc() {
@@ -110,12 +110,12 @@ pub fn add_user_test(){
 
     for i in 2..=2 {
         info!("add user task {}", i);
-        let task = Arc::new({
+        let task = {
             let inode = open_file(i.to_string().as_str(), OpenFlags::RDONLY);
             if inode.is_none() { continue; }
             let v = inode.unwrap().read_all();
             TaskControlBlock::new(v.as_slice(), i as usize)
-        });
+        };
 
         add_task(task.clone());
         drop(task);
@@ -125,10 +125,10 @@ pub fn add_user_test(){
 
 
 pub fn add_user_shell() {
-    let task = Arc::new({
+    let task = {
         let inode = open_file("user_shell", OpenFlags::RDONLY).unwrap();
         let v = inode.read_all();
         TaskControlBlock::new(v.as_slice(), 8 as usize)
-    });
+    };
     //add_task(task.clone());
 }

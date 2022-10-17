@@ -8,14 +8,7 @@ use riscv::register::satp;
 use alloc::sync::Arc;
 use lazy_static::*;
 use spin::Mutex;
-use crate::config::{
-    MEMORY_END,
-    PAGE_SIZE,
-    TRAMPOLINE,
-    TRAP_CONTEXT,
-    USER_STACK_SIZE,
-    MMIO,
-};
+use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE, MMIO, TRACE_SIZE};
 use xmas_elf::program::Type::Load;
 use crate::config::swap_contex_va;
 
@@ -358,6 +351,32 @@ impl MemorySet {
                 MapPermission::R | MapPermission::W | MapPermission::X,
             ), None);
         }
+
+        debug!("mapping plic");
+        memory_set.push(
+            MapArea::new(
+                (0xc00_0000 as usize).into(),
+                (0x1000_0000 as usize).into(),
+                MapType::Mmio,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
+
+        debug!("mapping uart");
+        use crate::uart;
+        #[cfg(any(feature = "board_qemu", feature = "board_lrv"))]
+        memory_set.push(
+            MapArea::new(
+                (uart::SERIAL_BASE_ADDRESS).into(),
+                (uart::SERIAL_BASE_ADDRESS + uart::SERIAL_NUM * uart::SERIAL_ADDRESS_STRIDE).into(),
+                MapType::Mmio,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
+
+        unsafe { asm!("fence.i") }
         memory_set
     }
     
@@ -578,10 +597,12 @@ impl MemorySet {
             let new_area = MapArea::from_another(area);
             memory_set.push(new_area, None);
             // copy data from another space
-            for vpn in area.vpn_range {
-                let src_ppn = user_space.translate(vpn).unwrap().ppn();
-                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
-                dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+            if area.map_type != MapType::Mmio {
+                for vpn in area.vpn_range {
+                    let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                    let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                    dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+                }
             }
         }
         memory_set
@@ -731,6 +752,9 @@ impl MapArea {
             MapType::Identical => {
                 ppn = PhysPageNum(vpn.0);
             }
+            MapType::Mmio => {
+                ppn = PhysPageNum(vpn.0);
+            }
             MapType::Framed => {
                 let frame = frame_alloc().unwrap();
                 ppn = frame.ppn;
@@ -845,6 +869,7 @@ impl MapArea {
 pub enum MapType {
     Identical,
     Framed,
+    Mmio,
 }
 
 bitflags! {

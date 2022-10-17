@@ -16,6 +16,10 @@ pub mod test_lib;
 pub mod syscall;
 mod lang_items;
 
+pub mod trap;
+pub mod user_uart;
+pub mod trace;
+
 extern crate alloc;
 #[macro_use]
 extern crate bitflags;

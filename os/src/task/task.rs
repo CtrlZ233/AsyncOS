@@ -5,8 +5,8 @@ use crate::mm::{
     VirtAddr,
     translated_refmut,
 };
-use crate::trap::{TrapContext, trap_handler};
-use crate::config::{TRAP_CONTEXT};
+use crate::trap::{TrapContext, trap_handler, UserTrapInfo};
+use crate::config::{TRAP_CONTEXT, USER_TRAP_BUFFER};
 use super::TaskContext;
 use super::{PidHandle, pid_alloc, KernelStack};
 use alloc::sync::{Weak, Arc};
@@ -28,11 +28,14 @@ pub struct TaskControlBlock {
 }
 
 use crate::config::swap_contex_va;
+use crate::task::pid::add_task_2_map;
+
 pub struct TaskControlBlockInner {
     pub trap_cx_ppn: PhysPageNum,
     pub base_size: usize,
     pub task_cx: TaskContext,
     pub task_cx_ptr: usize,
+    pub user_trap_info: Option<UserTrapInfo>,
     pub task_status: TaskStatus,
     pub memory_set: MemorySet,
     pub parent: Option<Weak<TaskControlBlock>>,
@@ -45,7 +48,9 @@ impl TaskControlBlockInner {
     pub fn get_task_cx_ptr(&mut self) -> *mut TaskContext {
         &mut self.task_cx as *mut TaskContext
     }
-
+    pub fn is_user_trap_enabled(&self) -> bool {
+        self.get_trap_cx().sstatus.uie()
+    }
     pub fn get_task_cx_ptr2(&self) -> *const usize {
         &self.task_cx_ptr as *const usize
     }
@@ -73,12 +78,12 @@ impl TaskControlBlockInner {
 }
 
 impl TaskControlBlock {
-    
+
     pub fn acquire_inner_lock(&self) -> MutexGuard<TaskControlBlockInner> {
         self.inner.lock()
     }
 
-    pub fn new(elf_data: &[u8], space_id:usize) -> Self {
+    pub fn new(elf_data: &[u8], space_id:usize) -> Arc<Self> {
         let pid_handle = pid_alloc();
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data, pid_handle.0);
@@ -103,6 +108,7 @@ impl TaskControlBlock {
                 base_size: user_sp,
                 task_cx,
                 task_cx_ptr: task_cx_ptr as usize,
+                user_trap_info: None,
                 task_status: TaskStatus::Ready,
                 memory_set,
                 parent: None,
@@ -118,7 +124,6 @@ impl TaskControlBlock {
                 ],
             }),
         };
-
         // let mut q = SPACE.lock();
         // SPACE.lock().push_context(space_id, task_cx_ptr as usize);
 
@@ -131,7 +136,10 @@ impl TaskControlBlock {
             trap_handler as usize,
             // space_id,
         );
-        task_control_block
+        let pid = task_control_block.getpid();
+        let arc_task = Arc::new(task_control_block);
+        add_task_2_map(pid, arc_task.clone());
+        arc_task
     }
 
 
@@ -173,6 +181,7 @@ impl TaskControlBlock {
 
         // **** hold current PCB lock
         let mut inner = self.acquire_inner_lock();
+        inner.user_trap_info = None;
         // substitute memory_set
         inner.memory_set = memory_set;
         // update trap_cx ppn
@@ -230,6 +239,15 @@ impl TaskControlBlock {
                 new_fd_table.push(None);
             }
         }
+        let mut user_trap_info: Option<UserTrapInfo> = None;
+        if let Some(mut trap_info) = parent_inner.user_trap_info.clone() {
+            debug!("[fork] copy parent trap info");
+            trap_info.user_trap_buffer_ppn = memory_set
+                .translate(VirtAddr::from(USER_TRAP_BUFFER).into())
+                .unwrap()
+                .ppn();
+            user_trap_info = Some(trap_info);
+        }
         let task_control_block = Arc::new(TaskControlBlock {
             pid: pid_handle,
             kernel_stack,
@@ -238,6 +256,7 @@ impl TaskControlBlock {
                 base_size: parent_inner.base_size,
                 task_cx,
                 task_cx_ptr: task_cx_ptr as usize,
+                user_trap_info,
                 task_status: TaskStatus::Ready,
                 memory_set,
                 parent: Some(Arc::downgrade(self)),
@@ -246,6 +265,7 @@ impl TaskControlBlock {
                 fd_table: new_fd_table,
             }),
         });
+        add_task_2_map(task_control_block.getpid(), task_control_block.clone());
         // add child
         parent_inner.children.push(task_control_block.clone());
         // modify kernel_sp in trap_cx

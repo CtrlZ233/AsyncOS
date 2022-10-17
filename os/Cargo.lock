@@ -12,19 +12,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-init"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfb6d71005dc22a708c7496eee5c8dc0300ee47355de6256c3b35b12b5fef596"
+
+[[package]]
+name = "atomic-polyfill"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c041a8d9751a520ee19656232a18971f18946a7900f1520ee4400002244dd89"
+dependencies = [
+ "critical-section",
+]
+
+[[package]]
 name = "bare-metal"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5deb64efa5bd81e31fcd1938615a6d98c82eafcbcd787162b6f63b91d6bac5b3"
 dependencies = [
- "rustc_version",
+ "rustc_version 0.2.3",
 ]
+
+[[package]]
+name = "bare-metal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 
 [[package]]
 name = "bit_field"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcb6dd1c2376d2e096796e234a70e17e94cc2d5d54ff8ce42b28cef1d0d359a4"
+
+[[package]]
+name = "bitfield"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 
 [[package]]
 name = "bitflags"
@@ -42,10 +69,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "cortex-m"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70858629a458fdfd39f9675c4dc309411f2a3f83bede76988d81bf1a0ecee9e0"
+dependencies = [
+ "bare-metal 0.2.5",
+ "bitfield",
+ "embedded-hal 0.2.7",
+ "volatile-register",
+]
+
+[[package]]
+name = "critical-section"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95da181745b56d4bd339530ec393508910c909c784e8962d15d722bacf0bcbcd"
+dependencies = [
+ "bare-metal 1.0.0",
+ "cfg-if",
+ "cortex-m",
+ "riscv 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "easy-fs"
@@ -53,6 +110,16 @@ version = "0.1.0"
 dependencies = [
  "lazy_static",
  "spin 0.7.1",
+]
+
+[[package]]
+name = "embedded-hal"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35949884794ad573cf46071e41c9b60efb0cb311e3ca01f7af807af1debc66ff"
+dependencies = [
+ "nb 0.1.3",
+ "void",
 ]
 
 [[package]]
@@ -126,12 +193,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
+name = "heapless"
+version = "0.7.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db04bc24a18b9ea980628ecf00e6c0264f3c1426dac36c00cb49b6fbad8b0743"
+dependencies = [
+ "atomic-polyfill",
+ "hash32",
+ "rustc_version 0.4.0",
+ "spin 0.9.2",
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "k210-hal"
 version = "0.2.0"
 source = "git+https://github.com/wyfcyx/k210-hal#ea121c91c0aef0cee3bf52cfd2ce6df53662844a"
 dependencies = [
  "bitflags",
- "embedded-hal",
+ "embedded-hal 1.0.0-alpha.4",
  "k210-pac",
  "nb 0.1.3",
 ]
@@ -141,7 +230,7 @@ name = "k210-pac"
 version = "0.2.0"
 source = "git+https://github.com/wyfcyx/k210-pac#8f99c1ca7e1c3b218b725ed133c12186a909f3b1"
 dependencies = [
- "bare-metal",
+ "bare-metal 0.2.5",
  "riscv 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vcell",
 ]
@@ -208,17 +297,25 @@ checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
 name = "os"
 version = "0.1.0"
 dependencies = [
+ "array-init",
  "bit_field",
  "bitflags",
  "buddy_system_allocator",
  "easy-fs",
+ "embedded-hal 1.0.0-alpha.4",
  "futures",
+ "heapless",
  "k210-hal",
  "k210-pac",
  "k210-soc",
  "lazy_static",
- "riscv 0.6.0 (git+https://github.com/rcore-os/riscv)",
+ "log",
+ "nb 1.0.0",
+ "riscv 0.7.0 (git+https://github.com/duskmoon314/riscv?branch=extN)",
+ "rv-plic",
  "spin 0.9.2",
+ "uart8250",
+ "uart_xilinx",
  "virtio-drivers",
  "woke",
  "xmas-elf",
@@ -259,7 +356,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2f0b705d428e9d0f78e2bb73093887ee58a83c9688de3faedbb4c0631c4618e"
 dependencies = [
- "bare-metal",
+ "bare-metal 0.2.5",
  "bit_field",
  "riscv-target",
 ]
@@ -269,10 +366,32 @@ name = "riscv"
 version = "0.6.0"
 source = "git+https://github.com/rcore-os/riscv#b6c469f0aabb5982b194a3ac3be0ea45329476ab"
 dependencies = [
- "bare-metal",
+ "bare-metal 0.2.5",
  "bit_field",
  "bitflags",
  "log",
+ "riscv-target",
+]
+
+[[package]]
+name = "riscv"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6907ccdd7a31012b70faf2af85cd9e5ba97657cc3987c4f13f8e4d2c2a088aba"
+dependencies = [
+ "bare-metal 1.0.0",
+ "bit_field",
+ "riscv-target",
+]
+
+[[package]]
+name = "riscv"
+version = "0.7.0"
+source = "git+https://github.com/duskmoon314/riscv?branch=extN#4f92ef0efa6883017203343310a65d6d6eaee165"
+dependencies = [
+ "bare-metal 1.0.0",
+ "bit_field",
+ "embedded-hal 0.2.7",
  "riscv-target",
 ]
 
@@ -292,7 +411,24 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 dependencies = [
- "semver",
+ "semver 0.9.0",
+]
+
+[[package]]
+name = "rustc_version"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
+dependencies = [
+ "semver 1.0.14",
+]
+
+[[package]]
+name = "rv-plic"
+version = "0.4.0"
+source = "git+https://github.com/duskmoon314/rv-plic#e94d511e04c863bc4cafe918fb0ca33f9cc8461a"
+dependencies = [
+ "volatile-register",
 ]
 
 [[package]]
@@ -309,6 +445,12 @@ checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 dependencies = [
  "semver-parser",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e25dfac463d778e353db5be2449d1cce89bd6fd23c9f1ea21310ce6e5a1b29c4"
 
 [[package]]
 name = "semver-parser"
@@ -338,6 +480,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "stable_deref_trait"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "uart8250"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f79d76028cbe0f22c51604082d2c7045b170fbbc1a0930fba295835a36531b90"
+dependencies = [
+ "bitflags",
+ "volatile-register",
+]
+
+[[package]]
+name = "uart_xilinx"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "385dd34924f5a9132a5e1803a663aeed4034f4b5d1ca08383e9011a616d8d17e"
+dependencies = [
+ "bitflags",
+ "volatile-register",
+]
+
+[[package]]
 name = "vcell"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -354,10 +522,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "void"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
 name = "volatile"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b06ad3ed06fef1713569d547cdbdb439eafed76341820fb0e0344f29a41945"
+
+[[package]]
+name = "volatile-register"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ee8f19f9d74293faf70901bc20ad067dc1ad390d2cbf1e3f75f721ffee908b6"
+dependencies = [
+ "vcell",
+]
 
 [[package]]
 name = "woke"

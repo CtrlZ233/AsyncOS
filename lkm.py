@@ -20,7 +20,7 @@ os.system('cd basic_rt && rust-objcopy --binary-architecture=riscv64 target/risc
 # os.system("cd user && rustup component add rust-src")
 
 os.system("cd user && cargo clean")
-os.system("cd user && cargo build --release")
+os.system("cd user && cargo build  --features \"board_qemu\" --release")
 
 
 
@@ -33,10 +33,10 @@ os.system("cd easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../u
 # os.system("cd os && rustup component add llvm-tools-preview")
 # os.system("cd os && rustup component add rust-src")
 os.system("cd os && cargo clean")
-os.system("cd os && cargo build --release")
+os.system("cd os && cargo build --features \"board_qemu\" --release")
 # os.system("cd os && cargo build")
 
-os.system("qemu-system-riscv64 \
+os.system("./qemu-build/riscv64-softmmu/qemu-system-riscv64 \
 -machine virt \
 -nographic \
 -smp cpus=4 \

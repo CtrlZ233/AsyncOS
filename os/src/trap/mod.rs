@@ -1,6 +1,8 @@
 pub mod context;
+mod usertrap;
 
-use riscv::{addr::BitField, register::{
+use bit_field::BitField;
+use riscv::{register::{
     mtvec::TrapMode,
     stvec,
     scause::{
@@ -13,6 +15,7 @@ use riscv::{addr::BitField, register::{
     sie,
     sstatus,
 }};
+use riscv::register::{scounteren, sideleg};
 use crate::{syscall::syscall, basic_rt::thread::cpu_run};
 use crate::task::{
     exit_current_and_run_next,
@@ -24,10 +27,24 @@ use crate::task::{
 use crate::timer::set_next_trigger;
 use crate::config::{TRAP_CONTEXT, TRAMPOLINE};
 
+pub use usertrap::{
+    push_trap_record, UserTrapError, UserTrapInfo, UserTrapQueue, UserTrapRecord, USER_EXT_INT_MAP,
+};
+
 global_asm!(include_str!("trap.S"));
 
 pub fn init() {
-    
+    unsafe {
+        sie::set_stimer();
+        sie::set_sext();
+        sie::set_ssoft();
+        sideleg::set_usoft();
+        sideleg::set_uext();
+        sideleg::set_utimer();
+        scounteren::set_cy();
+        scounteren::set_tm();
+        scounteren::set_ir();
+    }
     set_kernel_trap_entry();
 }
 

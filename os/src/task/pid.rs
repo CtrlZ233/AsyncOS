@@ -1,3 +1,5 @@
+use alloc::collections::BTreeMap;
+use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use lazy_static::*;
 use spin::Mutex;
@@ -7,10 +9,12 @@ use crate::config::{
     TRAMPOLINE,
     KERNEL_STACK_SIZE,
 };
+use crate::task::TaskControlBlock;
 
 struct PidAllocator {
     current: usize,
     recycled: Vec<usize>,
+    task_table: BTreeMap<usize, Weak<TaskControlBlock>>
 }
 
 impl PidAllocator {
@@ -18,6 +22,7 @@ impl PidAllocator {
         PidAllocator {
             current: 1,
             recycled: Vec::new(),
+            task_table: BTreeMap::new(),
         }
     }
     pub fn alloc(&mut self) -> PidHandle {
@@ -28,11 +33,22 @@ impl PidAllocator {
             PidHandle(self.current - 1)
         }
     }
+    pub fn add_task(&mut self, pid: usize, task: Arc<TaskControlBlock>) -> Result<(), usize> {
+        match self.task_table.try_insert(pid, Arc::downgrade(&task)) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(*err.entry.key()),
+        }
+    }
     pub fn dealloc(&mut self, pid: usize) {
         assert!(pid < self.current);
         assert!(
             self.recycled.iter().find(|ppid| **ppid == pid).is_none(),
             "pid {} has been deallocated!", pid
+        );
+        assert!(
+            self.task_table.remove(&pid).is_some(),
+            "pid {} has been deallocated!",
+            pid
         );
         self.recycled.push(pid);
     }
@@ -60,6 +76,25 @@ impl PartialEq<usize> for PidHandle {
 
 pub fn pid_alloc() -> PidHandle {
     PID_ALLOCATOR.lock().alloc()
+}
+
+pub fn add_task_2_map(pid: usize, task: Arc<TaskControlBlock>) {
+    PID_ALLOCATOR.lock().add_task(pid, task).unwrap();
+}
+
+pub fn find_task(pid: usize) -> Option<Arc<TaskControlBlock>> {
+    PID_ALLOCATOR
+        .lock()
+        .task_table
+        .get(&pid)
+        .and_then(|weak| weak.upgrade())
+        .and_then(|strong| {
+            if strong.acquire_inner_lock().is_zombie() {
+                None
+            } else {
+                Some(strong)
+            }
+        })
 }
 
 /// Return (bottom, top) of a kernel stack in kernel space.

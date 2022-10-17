@@ -8,12 +8,13 @@ pub const KERNEL_HEAP_SIZE: usize = 0x300_0000;
 pub const MEMORY_END: usize = 0x8910_0000;
 
 
+
 pub const PAGE_SIZE: usize = 0x1000;
 pub const PAGE_SIZE_BITS: usize = 0xc;
 
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
 pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
-
+pub const USER_TRAP_BUFFER: usize = TRAP_CONTEXT - PAGE_SIZE;
 
 pub const CLOCK_FREQ: usize = 12500000;
 
@@ -34,7 +35,8 @@ pub const fn swap_contex_va(asid: usize) -> usize {
 
 
 pub const CPU_NUM: usize = 2;
-
+pub const TRACE_START: usize = MEMORY_END;
+pub const TRACE_SIZE: usize = 0x1000_0000; // 256M
 
 
 #[cfg(feature = "board_k210")]
