@@ -11,6 +11,8 @@ use core::cell::RefCell;
 use crate::trap::TrapContext;
 use crate::config::CPU_NUM;
 use lazy_static::*;
+use crate::task::switch::__switch2;
+
 // use core::arch::asm;
 pub struct Processor {
     inner: RefCell<ProcessorInner>,
@@ -75,7 +77,7 @@ impl Processor {
 
         // println_hart!("switching idle:{:#x?} to:{:#x?}", hart_id(), idle_task_cx_ptr, next_task_cx_ptr );
         unsafe {
-            __switch(idle_task_cx_ptr, next_task_cx_ptr);
+            __switch2(idle_task_cx_ptr, next_task_cx_ptr);
         }
     }
 
@@ -189,6 +191,6 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     let idle_task_cx_ptr = PROCESSORS[hart_id()].get_idle_task_cx_ptr();
     unsafe {
-        __switch(switched_task_cx_ptr, idle_task_cx_ptr);
+        __switch2(switched_task_cx_ptr, idle_task_cx_ptr);
     }
 }

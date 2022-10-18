@@ -21,6 +21,13 @@ const ASYNC_SYSCALL_READ: usize = 501;
 const ASYNC_SYSCALL_WRITE: usize = 502;
 pub const SYSCALL_SHUT_DONE: usize = 555;
 
+const SYSCALL_INIT_USER_TRAP: usize = 600;
+const SYSCALL_SEND_MSG: usize = 601;
+const SYSCALL_SET_TIMER: usize = 602;
+const SYSCALL_CLAIM_EXT_INT: usize = 603;
+const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
+
+
 mod fs;
 pub mod process;
 
@@ -53,6 +60,8 @@ pub fn syscall(syscall_id: usize, args: [usize; 6]) -> isize {
 
         SYSCALL_DO_YIELD => sys_do_yield(args[0]),
         SYSCALL_GET_SYMBOL_ADDR=> sys_get_symbol_addr(args[0] as *const u8),
+        SYSCALL_INIT_USER_TRAP => sys_init_user_trap(),
+        SYSCALL_SET_TIMER => sys_set_timer(args[0]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

@@ -9,4 +9,8 @@ extern "C" {
         current_task_cx_ptr: *mut TaskContext, 
         next_task_cx_ptr: *mut TaskContext
     );
+
+    pub fn __switch2(
+        current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *mut TaskContext
+    );
 }

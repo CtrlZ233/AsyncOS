@@ -24,9 +24,12 @@ extern crate alloc;
 #[macro_use]
 extern crate bitflags;
 
+
 use syscall::*;
 use buddy_system_allocator::LockedHeap;
 use alloc::{vec::Vec};
+use riscv::register::mtvec::TrapMode;
+use riscv::register::utvec;
 pub use test_lib::compute;
 
 //const USER_HEAP_SIZE: usize = 0x80_0000;
@@ -45,6 +48,13 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
+
+    extern "C" {
+        fn __alltraps_u();
+    }
+    unsafe {
+        utvec::write(__alltraps_u as usize, TrapMode::Direct);
+    }
 
     let mut space_id :usize;
     unsafe {
@@ -189,6 +199,14 @@ pub fn satp_read() -> usize {
     sys_get_satp() as usize
 }
 
+// ==================== User Trap ==============================
+pub fn init_user_trap() -> isize {
+    sys_init_user_trap()
+}
+
+pub fn set_timer(time_us: isize) -> isize {
+    sys_set_timer(time_us)
+}
 
 
 

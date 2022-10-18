@@ -1,6 +1,7 @@
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 use super::PageTableEntry;
 use core::fmt::{self, Debug, Formatter};
+use core::ops::BitOrAssign;
 
 /// Definitions
 #[repr(C)]
@@ -145,6 +146,12 @@ impl PhysPageNum {
     }
 }
 
+impl BitOrAssign<usize> for PhysAddr {
+    fn bitor_assign(&mut self, rhs: usize) {
+        self.0 |= rhs
+    }
+}
+
 pub trait StepByOne {
     fn step(&mut self);
 }
@@ -173,6 +180,11 @@ impl<T> SimpleRange<T> where
     }
     pub fn get_start(&self) -> T { self.l }
     pub fn get_end(&self) -> T { self.r }
+    pub fn is_overlapped(&self, other: &Self) -> bool {
+        (self.l <= other.l && other.l < self.r)
+            || (self.l < other.r && other.r <= self.r)
+            || (other.l < self.l && self.r < other.r)
+    }
 }
 impl<T> IntoIterator for SimpleRange<T> where
     T: StepByOne + Copy + PartialEq + PartialOrd + Debug, {

@@ -108,13 +108,15 @@ pub fn add_initproc() {
 
 pub fn add_user_test(){
 
-    for i in 2..=2 {
-        info!("add user task {}", i);
+    {
         let task = {
-            let inode = open_file(i.to_string().as_str(), OpenFlags::RDONLY);
-            if inode.is_none() { continue; }
+            let inode = open_file("hello_world", OpenFlags::RDONLY);
+            if inode.is_none() {
+                println!("no such file");
+                return;
+            }
             let v = inode.unwrap().read_all();
-            TaskControlBlock::new(v.as_slice(), i as usize)
+            TaskControlBlock::new(v.as_slice(), 2 as usize)
         };
 
         add_task(task.clone());

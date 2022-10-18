@@ -19,6 +19,12 @@ pub const ASYNC_SYSCALL_READ: usize = 501;
 pub const ASYNC_SYSCALL_WRITE: usize = 502;
 pub const SYSCALL_SHUT_DONE: usize = 555;
 
+const SYSCALL_INIT_USER_TRAP: usize = 600;
+const SYSCALL_SEND_MSG: usize = 601;
+const SYSCALL_SET_TIMER: usize = 602;
+const SYSCALL_CLAIM_EXT_INT: usize = 603;
+const SYSCALL_SET_EXT_INT_ENABLE: usize = 604;
+
 fn syscall(id: usize, args: [usize; 6]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -105,6 +111,14 @@ pub fn async_sys_read(fd: usize, buffer_ptr: usize, buffer_len: usize, tid: usiz
 
 pub fn async_sys_write(fd: usize, buffer_ptr: usize, buffer_len: usize, tid: usize, space_id: usize, rtid: usize) -> isize {
     syscall(ASYNC_SYSCALL_WRITE, [fd, buffer_ptr, buffer_len, tid, space_id, rtid])
+}
+
+pub fn sys_init_user_trap() -> isize {
+    syscall(SYSCALL_INIT_USER_TRAP, [0, 0, 0, 0, 0, 0])
+}
+
+pub fn sys_set_timer(time_us: isize) -> isize {
+    syscall(SYSCALL_SET_TIMER, [time_us as usize, 0, 0, 0, 0, 0])
 }
 
 

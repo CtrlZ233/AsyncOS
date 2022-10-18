@@ -18,6 +18,7 @@ pub use page_table::{
     UserBuffer,
     UserBufferIterator,
     translated_context,
+    translate_writable_va
 };
 pub use memory_set::{
     MemorySet, 

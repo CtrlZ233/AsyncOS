@@ -8,6 +8,7 @@
 // #![feature(const_in_array_repeat_expressions)]
 #![feature(alloc_error_handler)]
 #![feature(map_try_insert)]
+#![feature(map_first_last)]
 #![allow(unused)]
 
 use alloc::alloc::dealloc;
@@ -93,7 +94,7 @@ pub fn rust_main(hart_id: usize) -> ! {
         fs::list_apps();
         
         debug!("trying to add user test");
-        //task::add_initproc();
+        // task::add_initproc();
         task::add_user_test();
         
         send_ipi();

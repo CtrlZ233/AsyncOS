@@ -27,7 +27,7 @@ pub fn sys_exit(exit_code: i32) -> ! {
 }
 
 pub fn sys_yield() -> isize {
-    println!("[kernel] yield, suspend current and run next");
+    // println!("[kernel] yield, suspend current and run next");
     suspend_current_and_run_next();
     0
 }
@@ -191,3 +191,27 @@ pub fn sys_get_satp() -> isize {
 //         -1
 //     }
 // }
+
+pub fn sys_init_user_trap() -> isize {
+    trace!("init user trap!");
+    match current_task()
+        .unwrap()
+        .acquire_inner_lock()
+        .init_user_trap()
+    {
+        Ok(addr) => {
+            trace!("init ok, addr: {:#x}", addr);
+            addr
+        }
+        Err(errno) => errno,
+    }
+}
+
+pub fn sys_set_timer(time_us: usize) -> isize {
+    let pid = current_task().unwrap().pid.0;
+    use crate::config::CLOCK_FREQ;
+    use crate::timer::{set_virtual_timer, USEC_PER_SEC};
+    let time = time_us * CLOCK_FREQ / USEC_PER_SEC;
+    set_virtual_timer(time, pid);
+    0
+}

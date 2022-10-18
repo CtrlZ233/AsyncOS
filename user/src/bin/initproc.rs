@@ -48,15 +48,10 @@ pub fn main() -> i32 {
                         string.push('\0');
                     });
 
-    
-                    if args_copy.len() == 3 { 
+
+                    if args_copy.len() == 3 {
                         println!("exit mmmmmmain");
-                        return 0; 
-                    }
-                    else { 
-                        line.clear();
-                        print!(">> ");
-                        continue; 
+                        return 0;
                     }
 
                     // redirect input
@@ -88,7 +83,9 @@ pub fn main() -> i32 {
                     if pid == 0 {
                         // input redirection
                         if !input.is_empty() {
+                            println!("test111");
                             let input_fd = open(input.as_str(), OpenFlags::RDONLY);
+                            println!("test222");
                             if input_fd == -1 {
                                 println!("Error when opening file {}", input);
                                 return -4;
@@ -98,6 +95,7 @@ pub fn main() -> i32 {
                             assert_eq!(dup(input_fd), 0);
                             close(input_fd);
                         }
+                        println!("test333");
                         // output redirection
                         if !output.is_empty() {
                             let output_fd =
@@ -111,6 +109,7 @@ pub fn main() -> i32 {
                             assert_eq!(dup(output_fd), 1);
                             close(output_fd);
                         }
+                        println!("test444");
                         // child process
                         if exec(args_copy[0].as_str(), args_addr.as_slice()) == -1 {
                             println!("Error when executing!");

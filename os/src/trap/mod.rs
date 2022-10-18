@@ -15,16 +15,10 @@ use riscv::{register::{
     sie,
     sstatus,
 }};
-use riscv::register::{scounteren, sideleg};
-use crate::{syscall::syscall, basic_rt::thread::cpu_run};
-use crate::task::{
-    exit_current_and_run_next,
-    suspend_current_and_run_next,
-    current_user_token,
-    current_trap_cx,
-    current_task,
-};
-use crate::timer::set_next_trigger;
+use riscv::register::{scounteren, sideleg, sip};
+use crate::{syscall::syscall, basic_rt::thread::cpu_run, plic};
+use crate::task::{exit_current_and_run_next, suspend_current_and_run_next, current_user_token, current_trap_cx, current_task, hart_id};
+use crate::timer::{get_time_us, set_next_trigger, TIMER_MAP};
 use crate::config::{TRAP_CONTEXT, TRAMPOLINE};
 
 pub use usertrap::{
@@ -110,13 +104,51 @@ pub fn trap_handler() -> ! {
             exit_current_and_run_next(-3);
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            set_next_trigger();
+            let mut timer_map = TIMER_MAP[hart_id()].lock();
+            while let Some((_, pid)) = timer_map.pop_first() {
+                if let Some((next_time, _)) = timer_map.first_key_value() {
+                    set_timer(*next_time);
+                }
+                drop(timer_map);
+                if pid == 0 {
+                    set_next_trigger();
+                    // static mut CNT: usize = 0;
+                    // unsafe {
+                    //     CNT += 1;
+                    //     if CNT > 6000 {
+                    //         debug!("kernel tick");
+                    //         CNT = 0;
+                    //     }
+                    // }
+                    //crate::task::update_bitmap();
+                    cpu_run();
 
-            //crate::task::update_bitmap();
-            cpu_run();
-            
-            // info!("[kernel] timer interrupt");
-            suspend_current_and_run_next();
+                    // info!("[kernel] timer interrupt");
+                    suspend_current_and_run_next();
+                } else if pid == current_task().unwrap().pid.0 {
+                    debug!("set UTIP for pid {}", pid);
+                    unsafe {
+                        sip::set_utimer();
+                    }
+                } else {
+                    let _ = push_trap_record(
+                        pid,
+                        UserTrapRecord {
+                            cause: 4,
+                            message: get_time_us(),
+                        },
+                    );
+                }
+                break;
+            }
+        }
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            // debug!("Supervisor External");
+            plic::handle_external_interrupt(hart_id());
+        }
+        Trap::Interrupt(Interrupt::SupervisorSoft) => {
+            // debug!("Supervisor Soft");
+            unsafe { sip::clear_ssoft() }
         }
         _ => {
             panic!("Unsupported trap {:?}, stval = {:#x}!", scause.cause(), stval);
@@ -132,17 +164,21 @@ pub fn trap_return() -> ! {
     unsafe {
         sstatus::clear_sie();
     }
-
+    current_task()
+        .unwrap()
+        .acquire_inner_lock()
+        .restore_user_trap_info();
     set_user_trap_entry();
     let trap_cx_ptr = TRAP_CONTEXT;
     let user_satp = current_user_token();
-
     extern "C" {
         fn __alltraps();
         fn __restore();
     }
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
+        sstatus::set_spie();
+        sstatus::set_spp(sstatus::SPP::User);
         asm!(
             "fence.i",
             "jr {restore_va}",
@@ -197,7 +233,7 @@ pub fn sepc_read() -> usize {
     ret
 }
 pub use context::{TrapContext};
-
+use crate::sbi::set_timer;
 
 
 pub unsafe fn get_swap_cx<'cx>(satp: usize, asid: usize) -> &'cx mut TrapContext {

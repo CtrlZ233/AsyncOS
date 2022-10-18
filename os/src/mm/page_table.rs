@@ -213,6 +213,20 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     page_table.translate_va(VirtAddr::from(va)).unwrap().get_mut()
 }
 
+pub fn translate_writable_va(token: usize, va: usize) -> Result<usize, isize> {
+    let va = VirtAddr::from(va);
+    let vpn = va.floor();
+    let page_table = PageTable::from_token(token);
+    let pte = page_table.translate(vpn).unwrap();
+    if !pte.writable() || !pte.is_valid() {
+        return Err(-1);
+    }
+    let ppn = pte.ppn();
+    let mut pa: PhysAddr = ppn.into();
+    pa |= va.page_offset();
+    Ok(usize::from(pa))
+}
+
 
 pub struct UserBuffer {
     pub buffers: Vec<&'static mut [u8]>,

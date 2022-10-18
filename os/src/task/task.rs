@@ -1,12 +1,6 @@
-use crate::mm::{
-    MemorySet,
-    PhysPageNum,
-    KERNEL_SPACE, 
-    VirtAddr,
-    translated_refmut,
-};
-use crate::trap::{TrapContext, trap_handler, UserTrapInfo};
-use crate::config::{TRAP_CONTEXT, USER_TRAP_BUFFER};
+use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr, translated_refmut, PhysAddr, translate_writable_va};
+use crate::trap::{TrapContext, trap_handler, UserTrapInfo, UserTrapQueue};
+use crate::config::{PAGE_SIZE, TRAP_CONTEXT, USER_TRAP_BUFFER};
 use super::TaskContext;
 use super::{PidHandle, pid_alloc, KernelStack};
 use alloc::sync::{Weak, Arc};
@@ -75,6 +69,64 @@ impl TaskControlBlockInner {
             self.fd_table.len() - 1
         }
     }
+
+    pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> Result<isize, isize> {
+        self.memory_set.mmap(start, len, port)
+    }
+
+    pub fn munmap(&mut self, start: usize, len: usize) -> Result<isize, isize> {
+        self.memory_set.munmap(start, len)
+    }
+
+    pub fn init_user_trap(&mut self) -> Result<isize, isize> {
+        use riscv::register::sstatus;
+        if self.user_trap_info.is_none() {
+            // R | W
+            if self.mmap(USER_TRAP_BUFFER, PAGE_SIZE, 0b11).is_ok() {
+                let phys_addr =
+                    translate_writable_va(self.get_user_token(), USER_TRAP_BUFFER).unwrap();
+                self.user_trap_info = Some(UserTrapInfo {
+                    user_trap_buffer_ppn: PhysPageNum::from(PhysAddr::from(phys_addr)),
+                    devices: Vec::new(),
+                });
+                let trap_queue = self.user_trap_info.as_mut().unwrap().get_trap_queue_mut();
+                *trap_queue = UserTrapQueue::new();
+                unsafe {
+                    sstatus::set_uie();
+                }
+                return Ok(USER_TRAP_BUFFER as isize);
+            } else {
+                warn!("[init user trap] mmap failed!");
+            }
+        } else {
+            warn!("[init user trap] self user trap info is not None!");
+        }
+        Err(-1)
+    }
+
+    pub fn restore_user_trap_info(&mut self) {
+        use riscv::register::{uip, uscratch};
+        if self.is_user_trap_enabled() {
+            if let Some(trap_info) = &mut self.user_trap_info {
+                // if trap_info.user_trap_record_num > 0 {
+                //     uscratch::write(trap_info.user_trap_record_num as usize);
+                //     trap_info.user_trap_record_num = 0;
+                //     unsafe {
+                //         uip::set_usoft();
+                //     }
+                // }
+                if !trap_info.get_trap_queue().is_empty() {
+                    trace!("restore {} user trap", trap_info.user_trap_record_num());
+                    uscratch::write(trap_info.user_trap_record_num());
+                    unsafe {
+                        uip::set_usoft();
+                    }
+                }
+            }
+        }
+    }
+
+
 }
 
 impl TaskControlBlock {
@@ -98,8 +150,8 @@ impl TaskControlBlock {
         let kernel_stack = KernelStack::new(&pid_handle);
         let kernel_stack_top = kernel_stack.get_top();
         // push a task context which goes to trap_return to the top of kernel stack
-        let task_cx = TaskContext::goto_trap_return(kernel_stack_top);
-        let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return(kernel_stack_top));
+        let task_cx = TaskContext::goto_trap_return(kernel_stack_top, pid_handle.0);
+        let task_cx_ptr = kernel_stack.push_on_top(task_cx.clone());
         let task_control_block = Self {
             pid: pid_handle,
             kernel_stack,
@@ -213,11 +265,14 @@ impl TaskControlBlock {
     
     pub fn fork(self: &Arc<TaskControlBlock>) -> Arc<TaskControlBlock> {
         // ---- hold parent PCB lock
+        println!("enter task fork");
         let mut parent_inner = self.acquire_inner_lock();
+        println!("acqure lock");
         // copy user space(include trap context)
         let memory_set = MemorySet::from_existed_user(
             &parent_inner.memory_set
         );
+        println!("end memset fork");
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
@@ -227,9 +282,9 @@ impl TaskControlBlock {
         let kernel_stack = KernelStack::new(&pid_handle);
         let kernel_stack_top = kernel_stack.get_top();
 
-        let task_cx = TaskContext::goto_trap_return(kernel_stack_top);
+        let task_cx = TaskContext::goto_trap_return(kernel_stack_top, pid_handle.0);
         // push a goto_trap_return task_cx on the top of kernel stack
-        let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return(kernel_stack_top));
+        let task_cx_ptr = kernel_stack.push_on_top(task_cx.clone());
         // copy fd table
         let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
         for fd in parent_inner.fd_table.iter() {
